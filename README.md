@@ -22,7 +22,7 @@ pip install -r requirements.txt
 The `preprocess_datasets.py` script prepares the dataset for training.
 
 ____Note____:
-____If you want to use the CIFAR-10 dataset, run `prepare_cifar.py` before running preprocess_datasets.py.
+___If you want to use the CIFAR-10 dataset, run `prepare_cifar.py` before running preprocess_datasets.py.
 
 Then cd in the scripts, run `process_data.sh`:
 
