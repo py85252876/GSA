@@ -2,15 +2,9 @@ import torch
 import numpy as np
 import argparse
 from sklearn.model_selection import train_test_split
-from sklearn import svm
-import matplotlib.pyplot as plt
-from sklearn.metrics import ConfusionMatrixDisplay
-from sklearn.model_selection import KFold
-from sklearn.neural_network import MLPClassifier
 from xgboost import XGBClassifier
 from sklearn.metrics import classification_report
 from sklearn.metrics import confusion_matrix
-from sklearn.model_selection import cross_val_score
 import pandas as pd
 from sklearn import preprocessing
 

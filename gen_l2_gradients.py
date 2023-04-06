@@ -1,8 +1,6 @@
 import argparse
 import inspect
 import os
-from pathlib import Path
-from typing import Optional
 
 import torch
 import torch.nn.functional as F
@@ -12,7 +10,6 @@ from accelerate.logging import get_logger
 from datasets import load_dataset
 from diffusers import DDPMScheduler, UNet2DModel
 from diffusers.utils import check_min_version
-from huggingface_hub import HfFolder, whoami
 from torchvision.transforms import (
     CenterCrop,
     Compose,
@@ -74,13 +71,6 @@ def parse_args():
     )
     parser.add_argument("--local_rank", type=int, default=-1, help="For distributed training: local_rank")
     parser.add_argument("--which_l2", type=int, default=-1, help="-1 is the last checkpoint")
-    parser.add_argument(
-        "--prediction_type",
-        type=str,
-        default="epsilon",
-        choices=["epsilon", "sample"],
-        help="Whether the model predict the 'epsilon'",
-    )
     parser.add_argument("--ddpm_num_steps", type=int, default=1000)
     parser.add_argument(
         "--resume_from_checkpoint",
@@ -132,9 +122,9 @@ def main(args):
             "UpBlock2D",
         ),
     )
-    accepts_prediction_type = "prediction_type" in set(inspect.signature(DDPMScheduler.__init__).parameters.keys())
+    prediction_type = "prediction_type" in set(inspect.signature(DDPMScheduler.__init__).parameters.keys())
 
-    if accepts_prediction_type:
+    if prediction_type:
         noise_scheduler = DDPMScheduler(
             num_train_timesteps=args.ddpm_num_steps,
             beta_schedule='linear',
@@ -208,33 +198,15 @@ def main(args):
         for step, batch in enumerate(train_dataloader):
             clean_images = batch["input"]
             clean_images = clean_images.repeat(15,1,1,1)
-            # Sample noise that we'll add to the images
             noise = torch.randn(clean_images.shape).to(clean_images.device)
-            bsz = clean_images.shape[0]
-
             timesteps = [100,200,300,400,500,600,700,800,900,1000,1100,1200,1300,1400,1499] 
-            #change timesteps from 1 to 1499.
             timesteps = torch.tensor(timesteps, device = clean_images.device).long()
-            # Add noise to the clean images according to the noise magnitude at each timestep
             noisy_images = noise_scheduler.add_noise(clean_images, noise, timesteps)
 
             with accelerator.accumulate(model):
-                # Predict the noise residual
                 model_output = model(noisy_images, timesteps).sample
 
-                if args.prediction_type == "epsilon":
-                    loss = F.mse_loss(model_output, noise)  # this could have different weights
-                elif args.prediction_type == "sample":
-                    alpha_t = _extract_into_tensor(
-                        noise_scheduler.alphas_cumprod, timesteps, (clean_images.shape[0], 1, 1, 1)
-                    )
-                    snr_weights = alpha_t / (1 - alpha_t)
-                    loss = snr_weights * F.mse_loss(
-                        model_output, clean_images, reduction="none"
-                    )  # use SNR weighting from distillation paper
-                    loss = loss.mean()
-                else:
-                    raise ValueError(f"Unsupported prediction type: {args.prediction_type}")
+                loss = F.mse_loss(model_output, noise)
 
                 accelerator.backward(loss)
                 gradients_l2_list = []
