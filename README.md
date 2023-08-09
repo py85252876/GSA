@@ -1,4 +1,4 @@
-#Gradient attack based on Subsampling and Aggregation
+# Gradient attack based on Subsampling and Aggregation
 
 This module contains the requisite code for implementing gradient attacks on the DDPM and Imagen models. We posit that this novel white-box MIA attack method, leveraging model gradients, can lead to enhanced attack efficiency and effectiveness, and is also highly pertinent to real-world scenarios.
 
@@ -32,7 +32,7 @@ pip install -r requirements.txt
 
 ### Imagen dependencies
 
-Same with prepare the DDPM dependencies, download [dependencies](Imagen/requirements.txt) file and run it with the same command.
+Same with prepare the DDPM dependencies, download [dependencies file](Imagen/requirements.txt) and run it with the same command.
 
 ```bash
 pip install -r requirements.txt
