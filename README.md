@@ -40,10 +40,10 @@ pip install -r requirements.txt
 
 ## Prepare Datasets
 
-> If using the CIFAR-10 dataset, you need to run the [prepare_CIFAR.py](DDPM/prepare_CIFAR.py) in advance for processing.
+> If using the CIFAR-10 dataset, you need to run the [prepare_cifar.py](DDPM/prepare_cifar.py) in advance for processing.
 
 
-To generate datasets for DDPM's shadow and target models, execute the script [process_DDPM_ds.py](DDPM/process_DDPM_ds.py) using the
+To generate datasets for DDPM's shadow and target models, execute the script [process_ddpm_ds.py](DDPM/process_ddpm_ds.py) using the
 
 ```bash
 python process_datasets.py --dataset_dir dataset_dir --output_dir output_ds_dir --datanum_target_model 30000 --datanum_per_shadow_model 30000 --number_of_shadow_model 5
