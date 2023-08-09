@@ -22,7 +22,7 @@ This repository contains:
 ## Download Dependencies
 ### DDPM dependencies
 
-> Before running the codes, make sure install all dependencies files.
+> Before running the code, make sure to install all dependency files.
 
 Install [requirements.txt](DDPM/requirements.txt) and run:
 
@@ -37,6 +37,38 @@ Same with prepare the DDPM dependencies, download [dependencies file](Imagen/req
 ```bash
 pip install -r requirements.txt
 ```
+
+## Prepare Datasets
+
+> If using the CIFAR-10 dataset, you need to run the [prepare_CIFAR.py](DDPM/prepare_CIFAR.py) in advance for processing.
+
+
+To generate datasets for DDPM's shadow and target models, execute the script [process_DDPM_ds.py](DDPM/process_DDPM_ds.py) using the
+
+```bash
+python process_datasets.py --dataset_dir dataset_dir --output_dir output_ds_dir --datanum_target_model 30000 --datanum_per_shadow_model 30000 --number_of_shadow_model 5
+```
+
+command. In this command, we build 5 shadow model datasets and one target model dataset. Each dataset contains two subsets: member sets and non-member sets. Each dataset contains 30,000 images.
+
+### Prepare Caption
+
+Given that the Imagen model operates as a text-to-image model, it takes a text-image pair as input. However, converting each batch of text into text embeddings every time introduces redundant computations and wastes time. Therefore, for more efficient training, it's advisable to pre-convert captions into embeddings and then input the embedding-image pair for training.
+
+Using the following command to build the embedding file.
+
+```bash
+python process_caption.py 
+```
+Then, same as how to preocess DDPM shadow/target models datasets, use 
+
+```bash
+python prepare_data.py --embedding_dir embedding_file_dir --output_dir output_dataset_dir
+```
+
+
+
+
 
 
 
