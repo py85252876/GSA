@@ -22,7 +22,7 @@ This repository contains:
 ## Download Dependencies
 ### DDPM dependencies
 
-> Before running the codes, make sure install all dependencies.
+> Before running the codes, make sure install all dependencies files.
 
 Install [requirements.txt](DDPM/requirements.txt) and run:
 
