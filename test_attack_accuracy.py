@@ -1,19 +1,22 @@
 import torch
 import numpy as np
 import argparse
-from sklearn.model_selection import train_test_split
 from xgboost import XGBClassifier
+from sklearn.model_selection import train_test_split
 from sklearn.metrics import classification_report
 from sklearn.metrics import confusion_matrix
-import pandas as pd
+from sklearn.metrics import roc_curve
+from sklearn.metrics import roc_auc_score
 from sklearn import preprocessing
+import pandas as pd
+
 
 def parse_args():
-    parser = argparse.ArgumentParser(description='')
-    parser.add_argument('--target_model_member_path', required=True)
-    parser.add_argument('--target_model_non_member_path', required=True)
-    parser.add_argument('--shadow_model_member_path', nargs='+', help='<Required> Set flag', required=True)
-    parser.add_argument('--shadow_model_non_member_path', nargs='+', help='<Required> Set flag', required=True)
+    parser = argparse.ArgumentParser(description="Test attack accuracy.")
+    parser.add_argument("--target_model_member_path", required=True)
+    parser.add_argument("--target_model_non_member_path", required=True)
+    parser.add_argument("--shadow_model_member_path", nargs='+', help='<Required> Set flag', required=True)
+    parser.add_argument("--shadow_model_non_member_path", nargs='+', help='<Required> Set flag', required=True)
 
     return parser.parse_args()
 
@@ -70,3 +73,16 @@ if __name__ == "__main__":
     print("XGBoost Classification Report=\n\n", classification_report(target_y, pred_xgb,digits = 3)) 
     print("XGBoost Confusion Matrix=\n\n", confusion_matrix(target_y, pred_xgb))
 
+    pred_xgb = xgb.predict_proba(target_x)
+    roc_auc = roc_auc_score(target_y, pred_xgb[:,1])
+
+    print(f"ROC AUC: {roc_auc}")
+    
+    fpr, tpr, _ = roc_curve(target_y, pred_xgb[:,1])
+
+    desired_fpr = 0.001
+
+    closest_fpr_index = np.argmin(np.abs(fpr - desired_fpr))
+    tpr_at_desired_fpr = tpr[closest_fpr_index]
+
+    print(f"TPR at FPR = {desired_fpr}: {tpr_at_desired_fpr}")

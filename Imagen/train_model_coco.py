@@ -2,26 +2,72 @@ import argparse
 import numpy as np
 import random
 import torch
+
+# https://github.com/lucidrains/imagen-pytorch.git
 from imagen_pytorch import load_imagen_from_checkpoint, ImagenTrainer, ImagenConfig
+
 from dataset_coco import *
 from torchvision import transforms as T
 from process_caption import *
 from einops import rearrange
 import os
+
+# https://github.com/wandb/wandb.git
 import wandb
+
 import pickle
 
 
 def parse():
-    parser = argparse.ArgumentParser(description="Simple example of a training script.")
-    parser.add_argument("--model_dir", type=str, default="./exp1/",help="The directory that used to save checkpoints")
-    parser.add_argument("--data_dir", type=str, default=None,help="The directory that used to save data(image)")
-    parser.add_argument("--project_name", type=str, default=None,help="The name that will show on wandb")
-    parser.add_argument("--gpu_id", type=int, default=0,help="The gpu number to run the code.")
-    parser.add_argument("--annotation_file_train", type=str, default="./data/annotations/captions_train2017.json",help="annotation_file_train")
-    parser.add_argument("--load_train_embedding", type=str, default="./embedding/text_base_train.pkl",help="embedding_file_train")
-    parser.add_argument("--from_scratch",type=int,default=1,help="decided read from checkpoint or not")
-    parser.add_argument("--checkpoint_path",type=str,default="",help="read checkpoint from this dir")
+    parser = argparse.ArgumentParser(description="Traing Imagen model.")
+    parser.add_argument(
+        "--model_dir", 
+        type=str, 
+        default="./exp1/",
+        help="The directory that used to save checkpoints"
+    )
+    parser.add_argument(
+        "--data_dir", 
+        type=str, 
+        default=None,
+        help="The directory that used to save data(image)"
+    )
+    parser.add_argument(
+        "--project_name", 
+        type=str, 
+        default=None,
+        help="The name that will show on wandb"
+    )
+    parser.add_argument(
+        "--gpu_id", 
+        type=int, 
+        default=0,
+        help="The gpu number to run the code."
+    )
+    parser.add_argument(
+        "--annotation_file_train", 
+        type=str, 
+        default="./data/annotations/captions_train2017.json",
+        help="annotation_file_train"
+    )
+    parser.add_argument(
+        "--load_train_embedding", 
+        type=str, 
+        default="./embedding/text_base_train.pkl",
+        help="embedding_file_train"
+    )
+    parser.add_argument(
+        "--from_scratch",
+        type=int,
+        default=1,
+        help="decided read from checkpoint or not"
+    )
+    parser.add_argument(
+        "--checkpoint_path",
+        type=str,
+        default="",
+        help="read checkpoint from this dir"
+    )
     args = parser.parse_args()
     return args
 
@@ -41,7 +87,7 @@ def prepare(args):
     project_name = args.project_name
     hyperparams = {
         "steps": 600000,
-        "dim": 128, #128 might better
+        "dim": 128,
         "cond_dim": 512,
         "dim_mults": (1, 2, 4, 8),
         "image_sizes": [64, 256],
@@ -56,7 +102,8 @@ def prepare(args):
         "train_embedding": args.load_train_embedding,
         "from_scratch": args.from_scratch,
         "checkpoint_path": args.checkpoint_path,
-        "num_epochs": 400000
+        "num_epochs": 400000,
+        "annotation_file":args.annotation_file_train,
     }
     torch.cuda.set_device(args.gpu_id)
     return hyperparams
@@ -73,26 +120,25 @@ def check_embedding(embedding_file,annotation_file):
 
 
 def make(config):
-    train_embedding = check_embedding(args.load_train_embedding,args.annotation_file_train)
+    train_embedding = check_embedding(config.train_embedding,config.annotation_file)
     data_transforms = T.Compose([
     T.Resize((256, 256)),
     T.ToTensor(),
     T.Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225])
-    # T.CenterCrop(100) #使用效果应该会更好
     ])
     
     imagen = ImagenConfig(
         unets = [dict(
-        dim = config.dim, # 32
+        dim = config.dim, 
         cond_dim = 512,
-        dim_mults = config.dim_mults, #(1,2,4,8)
-        num_resnet_blocks = config.num_resnet_blocks, #(3)
+        dim_mults = config.dim_mults, 
+        num_resnet_blocks = config.num_resnet_blocks, 
         layer_attns = (False, False, False, True)
         ),dict(
-        dim = config.dim, # 32
+        dim = config.dim, 
         cond_dim = 512,
-        dim_mults = config.dim_mults, #(1,2,4,8)
-        num_resnet_blocks = (2,4,8,8), #(3)
+        dim_mults = config.dim_mults, 
+        num_resnet_blocks = (2,4,8,8), 
         layer_attns = (False, False, False, True),
         layer_cross_attns = (False, False, False, True)
         )],
@@ -112,9 +158,6 @@ def make(config):
     )
 
     train_dataloader = torch.utils.data.DataLoader(ds, batch_size=config.batch_size, shuffle=True,num_workers = 8)
-    # valid_dataloader = torch.utils.data.DataLoader(tst_ds, batch_size=config.batch_size, shuffle=False, collate_fn=collate_fn, num_workers = 4)
-    # trainer.add_train_dataloader(train_dataloader)
-    # trainer.add_valid_dataloader(valid_dataloader)
     print("finish trainer setting",flush = True)
     return trainer,train_embedding,train_dataloader
 
@@ -123,8 +166,8 @@ def train_unet_1(trainer, train_dataloader, config, sample_factor=None, validate
     num = 1
     i=0
     sample_every = 10
-    for j in range(config.num_epochs):
-        for step, batch in enumerate(train_dataloader):
+    for _ in range(config.num_epochs):
+        for _, batch in enumerate(train_dataloader):
             loss = trainer(batch[0],text_embeds = batch[1],unet_number = 1,max_batch_size = 64)
             trainer.update(unet_number = 1)
             wandb.log({'train_loss': loss}, step=i+start_step)
@@ -137,22 +180,6 @@ def train_unet_1(trainer, train_dataloader, config, sample_factor=None, validate
             if save_every is not None and i != 0 and i % save_every == 0:
                 trainer.save(f"{config.model_save_dir}unet{num}-{i+start_step}.pt")
             i+=1
-    # text_embedding = torch.load(config.train_embedding)
-    # for i in range(config.steps):
-    #     loss = trainer.train_step(unet_number = 1,max_batch_size = config.batch_size)
-
-    #     wandb.log({'train_loss': loss}, step=i+start_step)
-
-    #     if sample_factor is not None and i % sample_every == 0 and trainer.is_main:
-    #         image = trainer.sample(text_embeds=embedding.unsqueeze(0), cond_scale = 3. , return_pil_images = True,stop_at_unet_number = 1) 
-    #         sample = []
-    #         sample.append(wandb.Image(image[0], caption="picture"))
-    #         wandb.log({"samples": sample}, step=i+start_step)
-    #         sample_every = int(sample_every * sample_factor)
-
-    #     if save_every is not None and i != 0 and i % save_every == 0:
-    #         trainer.save(f"{config.model_save_dir}unet{num}-{i+start_step}.pt")
-    # final save at the end if we did not already save this round
     if save_every is not None and i % save_every != 0:
         trainer.save(f"{config.model_save_dir}unet{num}-{i+start_step}.pt")
 
@@ -174,22 +201,9 @@ def train_unet_2(trainer, train_dataloader,config, sample_factor=None, save_ever
             sample_every = int(sample_every * sample_factor)
         if save_every is not None and i != 0 and i % save_every == 0:
             trainer.save(f"{config.model_save_dir}unet{num}-{i+start_step}.pt")
-    # for j in range(config.num_epochs):
-    #     for step, batch in enumerate(train_dataloader):
-    #         loss = trainer(batch[0],text_embeds = batch[1],unet_number = 2,max_batch_size = 4)
-    #         trainer.update(unet_number = 2)
-    #         wandb.log({'train_loss': loss}, step=i+start_step)
-    #         if sample_factor is not None and i % sample_every == 0 and trainer.is_main:
-    #             sample = []
-    #             image = trainer.sample(text_embeds=embedding.unsqueeze(0), cond_scale = 3. , return_pil_images = True,stop_at_unet_number = 2)
-    #             sample.append(wandb.Image(image[0], caption="picture"))
-    #             wandb.log({"samples": sample}, step=i+start_step)
-    #             sample_every = int(sample_every * sample_factor )
-    #         if save_every is not None and i != 0 and i % save_every == 0:
-    #             trainer.save(f"{config.model_save_dir}unet{num}-{i+start_step}.pt")
-    #         i+=1
     if save_every is not None and i % save_every != 0:
         trainer.save(f"{config.model_save_dir}unet{num}-{i+start_step}.pt")
+
 def main(hyperparams):
     
     with wandb.init(project=hyperparams['project_name'], config=hyperparams):
@@ -199,7 +213,6 @@ def main(hyperparams):
             trainer,embedding,train_dataloader = make(config)
             print("start training",flush = True)
             train_unet_1(trainer, train_dataloader, config, sample_factor=1.3, save_every=50_000,embedding = embedding[0]['embedding'])
-            # train_unet_2(config, sample_factor=1.3, save_every=50_000,last_step_name = last_step_name)
         elif hyperparams['from_scratch'] == 1:
             imagen = load_imagen_from_checkpoint(hyperparams['checkpoint_path'])
             imagen.timesteps = 20
@@ -222,9 +235,7 @@ def main(hyperparams):
             )
 
             train_dataloader = torch.utils.data.DataLoader(ds, batch_size=config.batch_size, shuffle=True,num_workers = 8)
-            # valid_dataloader = torch.utils.data.DataLoader(tst_ds, batch_size=config.batch_size, shuffle=False, collate_fn=collate_fn, num_workers = 4)
             trainer.add_train_dataloader(train_dataloader)
-            # trainer.add_valid_dataloader(valid_dataloader)
             print("finish trainer setting",flush = True)
             train_unet_1(trainer, config, sample_factor=1.3, save_every=50_000,start_step = 599999,embedding = train_embedding[0]['embedding'])
         elif hyperparams['from_scratch'] == 2:
@@ -244,10 +255,8 @@ def main(hyperparams):
             )
 
             train_dataloader = torch.utils.data.DataLoader(ds, batch_size=config.batch_size, shuffle=True,num_workers = 4)
-            # valid_dataloader = torch.utils.data.DataLoader(tst_ds, batch_size=config.batch_size, shuffle=False, collate_fn=collate_fn, num_workers = 4)
             trainer = ImagenTrainer(imagen, use_ema = True).cuda()
             trainer.add_train_dataloader(train_dataloader)
-            # trainer.add_valid_dataloader(valid_dataloader)
             print("finish trainer setting",flush = True)
             train_unet_2(trainer, train_dataloader, config, sample_factor=1.7, save_every=5000,start_step = 0,embedding = train_embedding[0]['embedding'])
 

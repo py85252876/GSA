@@ -1,1 +1,0 @@
-nohup python process_datasets.py --dataset_dir ./datasets/imagenet --output_dir ./datasets/exp0 --datanum_target_model 30000 --datanum_per_shadow_model 60000 --number_of_shadow_model 6 &

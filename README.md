@@ -1,56 +1,42 @@
-# MIA-Gradient-based-Attack
+#Gradient attack based on Subsampling and Aggregation
 
-The `gen_l2_gradients.py` script shows how to calculate the L2 norm of gradients.
+This module contains the requisite code for implementing gradient attacks on the DDPM and Imagen models. We posit that this novel white-box MIA attack method, leveraging model gradients, can lead to enhanced attack efficiency and effectiveness, and is also highly pertinent to real-world scenarios.
 
-The `preprocess_datasets.py` script prepares the dataset for training.
+This repository contains:
 
-If you want to use the CIFAR-10 dataset, run `prepare_cifar.py` before running preprocess_datasets.py.
+1. Procedures for preprocessing datasets and training both the [DDPM](DDPM/) and [Imagen](Imagen/) .
+2. Codes for extracting gradient information from trained [DDPM](DDPM/) and [Imagen](Imagen/) .
+3. Approaches to utilizing the extracted gradient data to evaluate attack performance under various metrics, including Accuracy, AUC, and TPR.
 
-## Running locally with PyTorch
-### Installing the dependencies
+## Table of Contents
 
-Before running the codes, make sure install all dependencies.
+- [Download Dependencies](#download-dependencies)
+	- [DDPM dependencies](#ddpm-dependencies)
+	- [Imagen dependencies](#imagen-dependencies)
+- [Prepare Datasets](#prepare-datasets)
+	- [Prepare Caption](#prepare-caption)
+- [Model Training](#model-training)
+- [Generate Gradient](#generate-gradient)
+- [Test Accuracy](#test-accuracy)
 
-Install requirements.txt and run:
+## Download Dependencies
+### DDPM dependencies
+
+> Before running the codes, make sure install all dependencies.
+
+Install [requirements.txt](DDPM/requirements.txt) and run:
 
 ```bash
 pip install -r requirements.txt
 ```
 
-### Prepare the training dataset
+### Imagen dependencies
 
-The `preprocess_datasets.py` script prepares the dataset for training.
-
-**Note:
-If you want to use the CIFAR-10 dataset, run `prepare_cifar.py` before running preprocess_datasets.py.**
-
-Then cd in the scripts, run `process_data.sh`:
+Same with prepare the DDPM dependencies, download [dependencies](Imagen/requirements.txt) file and run it with the same command.
 
 ```bash
-bash process_data.sh
+pip install -r requirements.txt
 ```
 
-### Train the Target model and Shadow models
 
-run `train_model.sh`:
-
-```bash
-bash train_model.sh
-```
-
-### After obtaining the gradient information, the L2 norm of the gradient is computed.
-
-run `gen_l2.sh`:
-
-```bash
-bash gen_l2.sh
-```
-
-### Next, the attack success rate is computed using XGBoost.
-
-run `test_accuracy.sh`:
-
-```bash
-bash test_accuracy.sh
-```
 

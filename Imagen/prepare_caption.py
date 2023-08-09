@@ -3,13 +3,13 @@ import pickle
 from torchvision import transforms as T
 from torch.utils.data import Dataset
 import json
+
+# https://github.com/huggingface/transformers.git
 from transformers import T5Tokenizer, T5EncoderModel
+
 from einops import rearrange
 import numpy as np
 import random
-'''
-used to build embedding for text caption
-'''
 
 
 def encode_caption(caption,tokenizer, model):
@@ -35,16 +35,12 @@ def preprocess_captions(annotations_file, save_path):
     with open(annotations_file, 'r') as file:
         data = json.load(file)
 
-    # model_name='google/t5-v1_1-base'
-    # max_length=256
-    # print("Loading tokenizer...",flush=True)
-    # tokenizer = T5Tokenizer.from_pretrained(model_name, model_max_length=max_length)
-    # print("Tokenizer loaded.", flush=True)
+    model_name='google/t5-v1_1-base'
+    max_length=256
+    tokenizer = T5Tokenizer.from_pretrained(model_name, model_max_length=max_length)
 
-    # print("Loading model...", flush=True)
-    # model = T5EncoderModel.from_pretrained(model_name)
-    # print("Model loaded.", flush=True)
-    # model.eval()
+    model = T5EncoderModel.from_pretrained(model_name)
+    model.eval()
 
     print("start", flush=True)
     annotations = data['annotations']
@@ -65,8 +61,10 @@ def preprocess_captions(annotations_file, save_path):
             index += 1
             if index % 10000==0:
                 print(index) 
+
     torch.save(captions,save_path)
     embeddings = []
+
     for i in range(0,len(captions), 100):
         print(f"start {i}", flush=True)
         batch_captions = captions[i:i + 100]
@@ -77,6 +75,7 @@ def preprocess_captions(annotations_file, save_path):
                 'embedding': encoded_caption_word[idx]
             }
             embeddings.append(temp)
+
     print("finish saving annotation", flush=True)
 
     torch.save(embeddings ,save_path)
@@ -93,7 +92,6 @@ def main():
     torch.backends.cudnn.benchmark = False
     torch.backends.cudnn.deterministic = True
     preprocess_captions("./annotations/captions_train2017.json", "./caption/image_caption.pkl")
-    # preprocess_captions("./data/annotations/captions_val2017.json", "./embedding/text_base_val.pkl")
 
 if __name__ == '__main__':
     main()

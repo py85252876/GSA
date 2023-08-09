@@ -2,6 +2,7 @@ import pickle
 import random
 import time
 import torch
+
 def save_dict_to_pkl(dictionary, filename):
     torch.save(dictionary,filename)
 

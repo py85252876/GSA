@@ -46,7 +46,6 @@ def get_file_path(filepath):
         fi_d = os.path.join(filepath,fi)    
         if os.path.isdir(fi_d):
             full_path = os.path.join(filepath, fi_d)
-            # file_path_list.append(full_path)
             file_path_list.extend(get_file_path(fi_d))    
         else:      
             full_path = os.path.join(filepath,fi_d)
@@ -68,7 +67,7 @@ def get_shadow_dataset(number_of_shadow_model, shadow_dataset, datanum_per_shado
     shadow_member = []
     shadow_non_member = []
     print("select shadow dataset")
-    for i in range(number_of_shadow_model):
+    for _ in range(number_of_shadow_model):
         shadow_data, _ = random_select(shadow_dataset, int(datanum_per_shadow_model))
         shadow_data_member, shadow_data_non_member = random_select(shadow_data, int(len(shadow_data) / 2))
         shadow_member.append(shadow_data_member)
@@ -104,7 +103,7 @@ def cp_path(target_member,target_non_member, shadow_member, shadow_non_member, o
             
         for file in shadow_non_member[i]:
             shutil.copy(file, shadow_non_member_path)
-    print("finish all works")
+    print("finish all jobs")
 
             
 
@@ -114,7 +113,6 @@ def main():
     target, shadow = random_select(file_list, args.datanum_target_model)
     target_member, target_non_member = random_select(target, int(len(target) / 2))
     shadow_member, shadow_non_member = get_shadow_dataset(args.number_of_shadow_model, shadow, args.datanum_per_shadow_model)
-    print("Selected data finished!")
     cp_path(target_member,target_non_member, shadow_member, shadow_non_member, args.output_dir )
     
         

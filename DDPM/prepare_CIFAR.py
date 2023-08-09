@@ -17,7 +17,7 @@ if os.path.exists(loc_1) == False:
     os.mkdir(loc_1)
 
 
-# 训练集有五个批次，每个批次10000个图片，测试集有10000张图片
+# each file contains 10,000 images
 def cifar10_img(file_dir):
     for i in range(1, 6):
         data_name = file_dir + '/' + 'data_batch_' + str(i)

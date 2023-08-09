@@ -5,11 +5,17 @@ import os
 import torch
 import torch.nn.functional as F
 
+# https://github.com/huggingface/accelerate.git
 from accelerate import Accelerator
-from accelerate.logging import get_logger
+
+# https://github.com/huggingface/datasets.git
 from datasets import load_dataset
+
+# https://github.com/huggingface/diffusers.git
 from diffusers import DDPMScheduler, UNet2DModel
 from diffusers.utils import check_min_version
+
+
 from torchvision.transforms import (
     CenterCrop,
     Compose,
@@ -24,20 +30,9 @@ from tqdm.auto import tqdm
 check_min_version("0.10.0.dev0")
 
 
-logger = get_logger(__name__)
-
-
-def _extract_into_tensor(arr, timesteps, broadcast_shape):
-    if not isinstance(arr, torch.Tensor):
-        arr = torch.from_numpy(arr)
-    res = arr[timesteps].float().to(timesteps.device)
-    while len(res.shape) < len(broadcast_shape):
-        res = res[..., None]
-    return res.expand(broadcast_shape)
-
-
 def parse_args():
-    parser = argparse.ArgumentParser(description="set dataset name")
+    parser = argparse.ArgumentParser(description="Get l2-norm gradients from DDPM.")
+    
     parser.add_argument(
         "--dataset_name",
         type=str,
@@ -69,9 +64,23 @@ def parse_args():
             " resolution"
         ),
     )
-    parser.add_argument("--local_rank", type=int, default=-1, help="For distributed training: local_rank")
-    parser.add_argument("--which_l2", type=int, default=-1, help="-1 is the last checkpoint")
-    parser.add_argument("--ddpm_num_steps", type=int, default=1000)
+    parser.add_argument(
+        "--local_rank", 
+        type=int, 
+        default=-1, 
+        help="For distributed training: local_rank"
+    )
+    parser.add_argument(
+        "--model_rank", 
+        type=int, 
+        default=-1, 
+        help="-1 is the last checkpoint"
+    )
+    parser.add_argument(
+        "--ddpm_num_steps", 
+        type=int, 
+        default=1000
+    )
     parser.add_argument(
         "--resume_from_checkpoint",
         type=str,
@@ -122,6 +131,8 @@ def main(args):
             "UpBlock2D",
         ),
     )
+    
+
     prediction_type = "prediction_type" in set(inspect.signature(DDPMScheduler.__init__).parameters.keys())
 
     if prediction_type:
@@ -178,13 +189,11 @@ def main(args):
     if args.resume_from_checkpoint:
         if args.resume_from_checkpoint != "latest":
             path = os.path.basename(args.resume_from_checkpoint)
-            print(path)
         else:
             dirs = os.listdir(args.model_dir)
             dirs = [d for d in dirs if d.startswith("checkpoint")]
             dirs = sorted(dirs, key=lambda x: int(x.split("-")[1]))
-            path = dirs[args.which_l2] 
-            print(path)
+            path = dirs[args.model_rank] 
         accelerator.print(f"Resuming from checkpoint {path}")
         accelerator.load_state(os.path.join(args.model_dir, path))
 

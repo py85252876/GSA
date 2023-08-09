@@ -6,32 +6,6 @@ from transformers import T5Tokenizer, T5EncoderModel
 import torch
 from einops import rearrange
 
-class HFDataset(Dataset):
-    def __init__(self, hf_dataset, embeddings, transform=None):
-        assert len(hf_dataset.features['label'].names) == embeddings.shape[0]
-        
-        self.data = hf_dataset
-        self.transform = transform
-        self.embeddings = embeddings
-        
-    
-    def __len__(self):
-        return len(self.data)
-    
-    def __getitem__(self, idx):
-        sample = self.data[idx]
-        img = sample['img']
-        label = sample['label']
-        
-        if self.transform is not None:
-            img = self.transform(img)
-        
-        text_embedding = self.embeddings[label]
-        
-        return img, text_embedding.clone()
-    
-
-
 class MSCOCODataset(Dataset):
     def __init__(self, root_dir,transform,embedding_file):
         self.root_dir = root_dir

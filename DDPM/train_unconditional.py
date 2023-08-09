@@ -6,13 +6,19 @@ import os
 import torch
 import torch.nn.functional as F
 
+# https://github.com/huggingface/accelerate.git
 from accelerate import Accelerator
 from accelerate.logging import get_logger
+
+# https://github.com/huggingface/datasets.git
 from datasets import load_dataset
+
+# https://github.com/huggingface/diffusers.git
 from diffusers import DDPMPipeline, DDPMScheduler, UNet2DModel
 from diffusers.optimization import get_scheduler
 from diffusers.training_utils import EMAModel
 from diffusers.utils import check_min_version
+
 from torchvision.transforms import (
     CenterCrop,
     Compose,
@@ -28,15 +34,6 @@ check_min_version("0.10.0.dev0")
 
 
 logger = get_logger(__name__)
-
-
-def _extract_into_tensor(arr, timesteps, broadcast_shape):
-    if not isinstance(arr, torch.Tensor):
-        arr = torch.from_numpy(arr)
-    res = arr[timesteps].float().to(timesteps.device)
-    while len(res.shape) < len(broadcast_shape):
-        res = res[..., None]
-    return res.expand(broadcast_shape)
 
 
 def parse_args():
@@ -65,10 +62,16 @@ def parse_args():
         ),
     )
     parser.add_argument(
-        "--train_batch_size", type=int, default=16, help="Batch size for the training dataloader."
+        "--train_batch_size", 
+        type=int, 
+        default=16, 
+        help="Batch size for the training dataloader."
     )
     parser.add_argument(
-        "--eval_batch_size", type=int, default=16, help="The number of images to generate for evaluation."
+        "--eval_batch_size", 
+        type=int, 
+        default=16, 
+        help="The number of images to generate for evaluation."
     )
     parser.add_argument(
         "--dataloader_num_workers",
@@ -128,16 +131,34 @@ def parse_args():
         default=True,
         help="Whether to use Exponential Moving Average for the final model weights.",
     )
-    parser.add_argument("--ema_inv_gamma", type=float, default=1.0, help="The inverse gamma value for the EMA decay.")
-    parser.add_argument("--local_rank", type=int, default=-1, help="For distributed training: local_rank")
+    parser.add_argument(
+        "--ema_inv_gamma", 
+        type=float, 
+        default=1.0, 
+        help="The inverse gamma value for the EMA decay."
+    )
+    parser.add_argument(
+        "--local_rank", 
+        type=int, 
+        default=-1, 
+        help="For distributed training: local_rank"
+    )
     parser.add_argument(
         "--mixed_precision",
         type=str,
         default="no",
         choices=["no", "fp16", "bf16"]
     )
-    parser.add_argument("--diffusion_steps", type=int, default=1000)
-    parser.add_argument("--diffusion_beta_schedule", type=str, default="linear")
+    parser.add_argument(
+        "--diffusion_steps", 
+        type=int, 
+        default=1000
+    )
+    parser.add_argument(
+        "--diffusion_beta_schedule", 
+        type=str, 
+        default="linear"
+    )
 
     args = parser.parse_args()
     env_local_rank = int(os.environ.get("LOCAL_RANK", -1))
@@ -201,13 +222,11 @@ def main(args):
         [
             Resize(args.resolution, interpolation=InterpolationMode.BILINEAR),
             CenterCrop(args.resolution),
-            # RandomHorizontalFlip(),
             ToTensor(),
             Normalize([0.5], [0.5]),
         ]
     )
     dataset = load_dataset("imagefolder", data_dir=args.train_data_dir, split="train")
-    print(dataset)
     def transforms(examples):
         images = [augmentations(image.convert("RGB")) for image in examples["image"]]
         return {"input": images}
@@ -240,7 +259,6 @@ def main(args):
         max_value=0.9999,
     )
 
-    # Handle the repository creation
     if accelerator.is_main_process:
         os.makedirs(args.output_dir, exist_ok=True)
 
