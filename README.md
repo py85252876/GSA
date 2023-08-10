@@ -6,7 +6,7 @@ This repository contains:
 
 1. Procedures for preprocessing datasets and training both the [DDPM](DDPM/) and [Imagen](Imagen/) .
 2. Codes for extracting gradient information from trained [DDPM](DDPM/) and [Imagen](Imagen/) .
-3. Approaches to utilizing the extracted gradient data to evaluate attack performance under various metrics, including Accuracy, AUC, and TPR.
+3. Approaches to utilizing the extracted gradient data to evaluate attack performance under various metrics, including **Accuracy**, **AUC**, and **TPR**.
 
 ## Table of Contents
 
@@ -81,7 +81,7 @@ python train_model_coco.py --model_dir=output_model_dir --data_dir= train_data_d
 
 ## Generate Gradient
 
-In the paper, two attack strategies are introduced. To employ the **GSA_1** approach, one can set `attack_method=1`. For executing attacks using the **GSA_2** method, the parameter `attack_method` should be designated as `2`. The default attack method is **GSA_1**. For the **DDPM** model, one can execute [gen_l2_gradients_ddpm.py](DDPM/gen_l2_gradients_ddpm.py). 
+In the paper, two attack strategies are introduced. To employ the **$GSA_1$** approach, one can set `attack_method=1`. For executing attacks using the **$GSA_2$** method, the parameter `attack_method` should be designated as `2`. The default attack method is **$GSA_1$**. For the **DDPM** model, one can execute [gen_l2_gradients_ddpm.py](DDPM/gen_l2_gradients_ddpm.py). 
 ```bash
 accelerate launch --gpu_ids 0 gen_l2_gradients_ddpm.py   --train_data_dir= train_data_dir  --resolution=64   --model_dir= model_dir   --resume_from_checkpoint="latest"  --which_l2=-1 --output_name= output_gradient_dir --attack_method=1
 ```
