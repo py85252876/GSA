@@ -46,7 +46,7 @@ pip install -r requirements.txt
 To generate datasets for DDPM's shadow and target models, execute the script [process_ddpm_ds.py](DDPM/process_ddpm_ds.py) using the
 
 ```bash
-python process_datasets.py --dataset_dir dataset_dir --output_dir output_ds_dir --datanum_target_model 30000 --datanum_per_shadow_model 30000 --number_of_shadow_model 5
+python process_datasets.py --dataset_dir dataset_dir --output_dir output_dataset_dir --datanum_target_model 30000 --datanum_per_shadow_model 30000 --number_of_shadow_model 5
 ```
 
 command. In this command, we build 5 shadow model datasets and one target model dataset. Each dataset contains two subsets: member sets and non-member sets. Each dataset contains 30,000 images.
@@ -76,8 +76,38 @@ accelerate launch --gpu_ids 0 train_unconditional.py --train_data_dir= train_dat
  Similarly, to train the Imagen model, execute 
 
 ```bash
-python train_model_coco.py --model_dir=output_model_dir --data_dir=train_data_dir --project_name="project_name" --load_train_embedding=embedding_dir --from_scratch=0 --checkpoint_path='None'
+python train_model_coco.py --model_dir=output_model_dir --data_dir= train_data_dir --project_name="project_name" --load_train_embedding=embedding_dir --from_scratch=0 --checkpoint_path='None'
 ```
+
+##Generate Gradient
+
+In the paper, two attack strategies are introduced. To employ the **GSA_1** approach, one can set `attack_method=1`. For executing attacks using the **GSA_2** method, the parameter `attack_method` should be designated as `2`. The default attack method is **GSA_1**. For the **DDPM** model, one can execute [gen_l2_gradients_ddpm.py](DDPM/gen_l2_gradients_ddpm.py). 
+```bash
+accelerate launch --gpu_ids 0 gen_l2_gradients_ddpm.py   --train_data_dir= train_data_dir  --resolution=64   --model_dir= model_dir   --resume_from_checkpoint="latest"  --which_l2=-1 --output_name= output_gradient_dir --attack_method=1
+```
+To extract gradients from the **Imagen** model, run [gen_l2_gradients_imagen.py](Imagen/gen_l2_gradients_imagen.py).
+
+```bash
+python gen_l2_gradients_imagen.py --gradient_path= output_gradient_dir --data_dir= train_data_dir  --load_train_embedding= embedding_file --checkpoint_path= model_dir --get_unet=1 --attack_method=1 
+```
+##Test Accuracy
+
+We aimed to conduct a comprehensive evaluation of the effectiveness of our attacks. Consequently, we employed **Accuracy**, **AUC**, as well as **TPR** values at fixed **FPRs** of **1%** and **0.1%** as our evaluation metrics. In [test_attack_accuracy.py](test_attack_accuracy.py) train the `attack model` and demonstrate its performance across these diverse evaluation matrices.
+
+```bash
+python test_attack_accuracy.py \
+--target_model_member_path target_member_gradient_file \
+--target_model_non_member_path target_non_member_gradient_file \
+--shadow_model_member_path \
+    shadow_member_gradient_file \
+--shadow_model_non_member_path \
+    shadow_non_member_gradient_file
+```
+
+
+
+
+
 
 
 

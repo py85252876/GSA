@@ -46,21 +46,21 @@ def parse_args():
         type=str,
         default=None,
         help=(
-            "training dataset directory"
+            "training dataset directory."
         ),
     )
     parser.add_argument(
         "--model_dir",
         type=str,
         default=None,
-        help="Where we save the training and shadow model",
+        help="Where we save the training and shadow model.",
     )
     parser.add_argument(
         "--resolution",
         type=int,
         default=64,
         help=(
-            "The resolution for input images, all the images in the train/validation dataset will be resized to this"
+            "The resolution for input images, all the images in the train/validation dataset will be resized to this."
             " resolution"
         ),
     )
@@ -68,13 +68,13 @@ def parse_args():
         "--local_rank", 
         type=int, 
         default=-1, 
-        help="For distributed training: local_rank"
+        help="For distributed training: local_rank."
     )
     parser.add_argument(
         "--model_rank", 
         type=int, 
         default=-1, 
-        help="-1 is the last checkpoint"
+        help="-1 is the last checkpoint."
     )
     parser.add_argument(
         "--ddpm_num_steps", 
@@ -86,7 +86,7 @@ def parse_args():
         type=str,
         default=None,
         help=(
-            "whether we will get the latest checkpoints"
+            "whether we will get the latest checkpoints."
         ),
     )
     parser.add_argument(
@@ -97,6 +97,14 @@ def parse_args():
             "The directory that save the gradient information."
         ),
     )
+    parser.add_argument(
+        "--attack_method",
+        type=int,
+        default=1,
+        help=(
+            "GSA attack method number."
+        ),
+    )
 
     args = parser.parse_args()
     env_local_rank = int(os.environ.get("LOCAL_RANK", -1))
@@ -104,6 +112,14 @@ def parse_args():
         args.local_rank = env_local_rank
 
     return args
+
+def _extract_into_tensor(arr, timesteps, broadcast_shape):
+    if not isinstance(arr, torch.Tensor):
+        arr = torch.from_numpy(arr)
+    res = arr[timesteps].float().to(timesteps.device)
+    while len(res.shape) < len(broadcast_shape):
+        res = res[..., None]
+    return res.expand(broadcast_shape)
 
 def main(args):
     accelerator = Accelerator()
@@ -154,7 +170,7 @@ def main(args):
             Resize(args.resolution, interpolation=InterpolationMode.BILINEAR),
             CenterCrop(args.resolution),
             ToTensor(),
-            Normalize([0.5], [0.5]),
+            Normalize(mean=[0.485, 0.456, 0.406],std=[0.229, 0.224, 0.225]),
         ]
     )
     if args.dataset_name is not None:
@@ -206,32 +222,78 @@ def main(args):
         all_samples_grads = []
         for step, batch in enumerate(train_dataloader):
             clean_images = batch["input"]
-            clean_images = clean_images.repeat(15,1,1,1)
+            clean_images = clean_images.repeat(10,1,1,1)
+            # Sample noise that we'll add to the images
             noise = torch.randn(clean_images.shape).to(clean_images.device)
-            timesteps = [100,200,300,400,500,600,700,800,900,1000,1100,1200,1300,1400,1499] 
+            bsz = clean_images.shape[0]
+
+            timesteps = [100,200,300,400,500,600,700,800,900,999] 
+            #change timesteps from 1 to 1499.
             timesteps = torch.tensor(timesteps, device = clean_images.device).long()
+            # Add noise to the clean images according to the noise magnitude at each timestep
+            # (this is the forward diffusion process)
             noisy_images = noise_scheduler.add_noise(clean_images, noise, timesteps)
 
             with accelerator.accumulate(model):
+                # Predict the noise residual
                 model_output = model(noisy_images, timesteps).sample
+                if args.attack_method == 1:
+                    if args.prediction_type == "epsilon":
+                        loss = F.mse_loss(model_output, noise)  # this could have different weights!
+                    elif args.prediction_type == "sample":
+                        alpha_t = _extract_into_tensor(
+                            noise_scheduler.alphas_cumprod, timesteps, (clean_images.shape[0], 1, 1, 1)
+                        )
+                        snr_weights = alpha_t / (1 - alpha_t)
+                        loss = snr_weights * F.mse_loss(
+                            model_output, clean_images, reduction="none"
+                        )  # use SNR weighting from distillation paper
+                        loss = loss.mean()
+                    else:
+                        raise ValueError(f"Unsupported prediction type: {args.prediction_type}")
 
-                loss = F.mse_loss(model_output, noise)
+                    accelerator.backward(loss)
+                    gradients_l2_list = []
+                    for p in model.parameters():
+                        gradients_l2_list.append(torch.norm(p.grad).unsqueeze(0))
+                    gradients_l2_list = torch.cat(gradients_l2_list)
+                    all_samples_grads.append(gradients_l2_list.unsqueeze(0))
+                    optimizer.zero_grad()
+                    progress_bar.update(1)
+                elif args.attack_method == 2:
+                    all_grad_per = []
+                    for j in range(len(timesteps)):
+                        # print(step,flush = True)
+                        if args.prediction_type == "epsilon":
+                            loss = F.mse_loss(model_output[j].unsqueeze(0), noise[j].unsqueeze(0))  # this could have different weights!
+                        elif args.prediction_type == "sample":
+                            alpha_t = _extract_into_tensor(
+                                noise_scheduler.alphas_cumprod, timesteps, (clean_images.shape[0], 1, 1, 1)
+                            )
+                            snr_weights = alpha_t / (1 - alpha_t)
+                            loss = snr_weights * F.mse_loss(
+                                model_output, clean_images, reduction="none"
+                            )  # use SNR weighting from distillation paper
+                            loss = loss.mean()
+                        else:
+                            raise ValueError(f"Unsupported prediction type: {args.prediction_type}")
 
-                accelerator.backward(loss)
-                gradients_l2_list = []
-                for p in model.parameters():
-                    gradients_l2_list.append(torch.norm(p.grad).unsqueeze(0))
-                gradients_l2_list = torch.cat(gradients_l2_list)
-                all_samples_grads.append(gradients_l2_list.unsqueeze(0))
-                optimizer.zero_grad()
-                progress_bar.update(1)
-
+                        accelerator.backward(loss,retain_graph=True)
+                        gradients_l2_list = []
+                        for p in model.parameters():
+                            gradients_l2_list.append(torch.norm(p.grad).unsqueeze(0))
+                        # print(gradients_l2_list[0].shape)
+                        gradients_l2_list = torch.cat(gradients_l2_list)
+                        # print(gradients_l2_list.shape)
+                        all_grad_per.append(gradients_l2_list)
+                        optimizer.zero_grad()
+                    all_samples_grads.append(torch.stack(all_grad_per).mean(dim=0).unsqueeze(0))
+                    progress_bar.update(1)
         progress_bar.close()
 
         accelerator.wait_for_everyone()        
         all_samples_grads = torch.cat(all_samples_grads)
-        torch.save(all_samples_grads, args.output_name)
-        break
+        # torch.save(all_samples_grads, args.output_name)
     accelerator.end_training()
 
 

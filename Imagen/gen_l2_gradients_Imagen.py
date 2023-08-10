@@ -27,13 +27,13 @@ def parse():
         "--gradient_path", 
         type=str, 
         default="./exp1/",
-        help="The directory that used to save gradients"
+        help="The directory that used to save gradients."
     )
     parser.add_argument(
         "--data_dir",
         type=str, 
         default=None,
-        help="The directory that used to save data(image)"
+        help="The directory that used to save data(image)."
     )
     parser.add_argument(
         "--gpu_id", 
@@ -44,26 +44,31 @@ def parse():
     parser.add_argument(
         "--annotation_file_train", 
         type=str, 
-        default="./data/annotations/captions_train2017.json",
-        help="annotation_file_train"
+        default="./data/annotations/captions_train2017.json"
     )
     parser.add_argument(
         "--load_train_embedding", 
         type=str, 
-        default="./embedding/text_base_train.pkl",
-        help="embedding_file_train"
+        default="./embedding/text_base_train.pkl"
     )
     parser.add_argument(
         "--checkpoint_path",
         type=str,
         default="",
-        help="read checkpoint from this dir"
+        help="read checkpoint from this dir."
     )
     parser.add_argument(
         "--get_unet",
         type=int,
         default=1,
-        help="unet number to get gradient"
+        help="unet number to get gradient."
+    )
+    
+    parser.add_argument(
+        "--attack_method",
+        type=int,
+        default=1,
+        help="GSA method number."
     )
     args = parser.parse_args()
     return args
@@ -95,6 +100,7 @@ def prepare(args):
         "gradient_path": args.gradient_path,
         "get_unet":args.get_unet,
         "annotation_file":args.annotation_file_train,
+        "attack_method" : args.attack_method,
     }
     torch.cuda.set_device(args.gpu_id)
     return hyperparams
@@ -118,8 +124,8 @@ def gen_gradients(trainer, valid_dataloader,config):
         trainer.imagen.unets[config['get_unet']-1].eval()
         all_gradient_list = []
         print(f"get unet gradient from unet {config['get_unet']}",flush = True)
-        for step, batch in enumerate(valid_dataloader):
-            loss,gradients_l2_list = trainer.get_gradient(unet_number = config['get_unet'],max_batch_size = 1)
+        for _, _ in enumerate(valid_dataloader):
+            gradients_l2_list = trainer.get_gradient(unet_number = config['get_unet'],max_batch_size = 1,attack_method = config['attack_method'])
             all_gradient_list.append(gradients_l2_list.unsqueeze(0))
             progress_bar.update(1)
         all_gradient_list = torch.cat(all_gradient_list)

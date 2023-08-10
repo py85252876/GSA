@@ -13,10 +13,26 @@ import pandas as pd
 
 def parse_args():
     parser = argparse.ArgumentParser(description="Test attack accuracy.")
-    parser.add_argument("--target_model_member_path", required=True)
-    parser.add_argument("--target_model_non_member_path", required=True)
-    parser.add_argument("--shadow_model_member_path", nargs='+', help='<Required> Set flag', required=True)
-    parser.add_argument("--shadow_model_non_member_path", nargs='+', help='<Required> Set flag', required=True)
+    parser.add_argument(
+        "--target_model_member_path", 
+        required=True
+    )
+    parser.add_argument(
+        "--target_model_non_member_path", 
+        required=True
+    )
+    parser.add_argument(
+        "--shadow_model_member_path", 
+        nargs='+', 
+        help='<Required> Set flag', 
+        required=True
+    )
+    parser.add_argument(
+        "--shadow_model_non_member_path", 
+        nargs='+', 
+        help='<Required> Set flag', 
+        required=True
+    )
 
     return parser.parse_args()
 
@@ -79,6 +95,13 @@ if __name__ == "__main__":
     print(f"ROC AUC: {roc_auc}")
     
     fpr, tpr, _ = roc_curve(target_y, pred_xgb[:,1])
+
+    desired_fpr = 0.01
+
+    closest_fpr_index = np.argmin(np.abs(fpr - desired_fpr))
+    tpr_at_desired_fpr = tpr[closest_fpr_index]
+
+    print(f"TPR at FPR = {desired_fpr}: {tpr_at_desired_fpr}")
 
     desired_fpr = 0.001
 
