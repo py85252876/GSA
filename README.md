@@ -66,6 +66,18 @@ Then, same as how to preocess DDPM shadow/target models datasets, use
 python prepare_data.py --embedding_dir embedding_file_dir --output_dir output_dataset_dir
 ```
 
+## Model Training
+
+To train the DDPM model, utilize the command 
+
+```bash
+accelerate launch --gpu_ids 0 train_unconditional.py --train_data_dir= train_data_dir --resolution=32 --output_dir=output_model_dir --train_batch_size=32 --num_epochs=400 --gradient_accumulation_steps=1 --learning_rate=1e-4 --lr_warmup_steps=500 --mixed_precision=no --save_model_epochs=50
+```
+ Similarly, to train the Imagen model, execute 
+
+```bash
+python train_model_coco.py --model_dir=output_model_dir --data_dir=train_data_dir --project_name="project_name" --load_train_embedding=embedding_dir --from_scratch=0 --checkpoint_path='None'
+```
 
 
 
