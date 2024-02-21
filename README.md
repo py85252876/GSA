@@ -1,5 +1,7 @@
 # Gradient attack based on Subsampling and Aggregation
 
+<a href='https://arxiv.org/abs/2308.06405'><img src='https://img.shields.io/badge/Paper-Arxiv-red'></a> 
+
 This module contains the requisite code for implementing gradient attacks on the **DDPM** and **Imagen**. We posit that this novel white-box MIA attack method, leveraging model gradients, can lead to enhanced attack efficiency and effectiveness, and is also highly pertinent to real-world scenarios.
 
 This repository contains:
