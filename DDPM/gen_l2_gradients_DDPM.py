@@ -105,6 +105,18 @@ def parse_args():
             "GSA attack method number."
         ),
     )
+    parser.add_argument(
+        "--sampling_frequency",
+        type=int,
+        default=10,
+    )
+    parser.add_argument(
+        "--prediction_type",
+        type=str,
+        default="epsilon",
+        choices=["epsilon", "sample"],
+        help="Whether the model should predict the 'epsilon'/noise error or directly the reconstructed image 'x0'.",
+    )
 
     args = parser.parse_args()
     env_local_rank = int(os.environ.get("LOCAL_RANK", -1))
@@ -165,12 +177,20 @@ def main(args):
         lr=0
     )
 
+    # augmentations = Compose(
+    #     [
+    #         Resize(args.resolution, interpolation=InterpolationMode.BILINEAR),
+    #         CenterCrop(args.resolution),
+    #         ToTensor(),
+    #         Normalize(mean=[0.485, 0.456, 0.406],std=[0.229, 0.224, 0.225]),
+    #     ]
+    # )
+
     augmentations = Compose(
         [
-            Resize(args.resolution, interpolation=InterpolationMode.BILINEAR),
-            CenterCrop(args.resolution),
+            Resize((args.resolution,args.resolution), interpolation=InterpolationMode.BILINEAR),
             ToTensor(),
-            Normalize(mean=[0.485, 0.456, 0.406],std=[0.229, 0.224, 0.225]),
+            Normalize([0.5], [0.5]),
         ]
     )
     if args.dataset_name is not None:
@@ -222,12 +242,13 @@ def main(args):
         all_samples_grads = []
         for step, batch in enumerate(train_dataloader):
             clean_images = batch["input"]
-            clean_images = clean_images.repeat(10,1,1,1)
+            clean_images = clean_images.repeat(args.sampling_frequency,1,1,1)
             # Sample noise that we'll add to the images
             noise = torch.randn(clean_images.shape).to(clean_images.device)
             bsz = clean_images.shape[0]
 
-            timesteps = [100,200,300,400,500,600,700,800,900,999] 
+            # timesteps = [100,200,300,400,500,600,700,800,900,999] 
+            timesteps = [x - 1 for x in range(int(args.ddpm_num_steps/args.sampling_frequency), args.ddpm_num_steps+1, int(args.ddpm_num_steps/args.sampling_frequency))]
             #change timesteps from 1 to 1499.
             timesteps = torch.tensor(timesteps, device = clean_images.device).long()
             # Add noise to the clean images according to the noise magnitude at each timestep
@@ -293,7 +314,7 @@ def main(args):
 
         accelerator.wait_for_everyone()        
         all_samples_grads = torch.cat(all_samples_grads)
-        # torch.save(all_samples_grads, args.output_name)
+        torch.save(all_samples_grads, args.output_name)
     accelerator.end_training()
 
 

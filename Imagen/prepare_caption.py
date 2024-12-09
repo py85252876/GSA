@@ -39,7 +39,7 @@ def preprocess_captions(annotations_file, save_path):
     max_length=256
     tokenizer = T5Tokenizer.from_pretrained(model_name, model_max_length=max_length)
 
-    model = T5EncoderModel.from_pretrained(model_name)
+    model = T5EncoderModel.from_pretrained(model_name, cache_dir="./huggingface/hub")
     model.eval()
 
     print("start", flush=True)
@@ -64,7 +64,7 @@ def preprocess_captions(annotations_file, save_path):
 
     torch.save(captions,save_path)
     embeddings = []
-
+    print(len(captions))
     for i in range(0,len(captions), 100):
         print(f"start {i}", flush=True)
         batch_captions = captions[i:i + 100]
@@ -76,9 +76,8 @@ def preprocess_captions(annotations_file, save_path):
             }
             embeddings.append(temp)
 
-    print("finish saving annotation", flush=True)
-
     torch.save(embeddings ,save_path)
+    print("finish saving annotation", flush=True)
 
 
 def main():
@@ -91,7 +90,7 @@ def main():
     random.seed(seed)
     torch.backends.cudnn.benchmark = False
     torch.backends.cudnn.deterministic = True
-    preprocess_captions("./annotations/captions_train2017.json", "./caption/image_caption.pkl")
+    preprocess_captions("./captions_train2017.json", "./coco/caption/image_caption.pkl")
 
 if __name__ == '__main__':
     main()

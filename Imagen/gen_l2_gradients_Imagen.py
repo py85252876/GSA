@@ -8,9 +8,9 @@ from imagen_pytorch.utils import load_imagen_from_checkpoint
 from imagen_pytorch.configs import ImagenConfig
 from imagen_pytorch.trainer import ImagenTrainer
 
-from dataset_coco import *
+from dataset_MSCOCO import *
 from torchvision import transforms as T
-from process_caption import *
+from prepare_caption import *
 from einops import rearrange
 import os
 
@@ -124,15 +124,17 @@ def gen_gradients(trainer, valid_dataloader,config):
         trainer.imagen.unets[config['get_unet']-1].eval()
         all_gradient_list = []
         print(f"get unet gradient from unet {config['get_unet']}",flush = True)
-        for _, _ in enumerate(valid_dataloader):
-            gradients_l2_list = trainer.get_gradient(unet_number = config['get_unet'],max_batch_size = 1,attack_method = config['attack_method'])
-            all_gradient_list.append(gradients_l2_list.unsqueeze(0))
+        for _, batch in enumerate(valid_dataloader):
+            gradients_l2_list = trainer.get_gradient(batch[0],text_embeds = batch[1],unet_number = config['get_unet'],max_batch_size = 1,attack_method = config['attack_method'])
+            all_gradient_list.append(gradients_l2_list)
             progress_bar.update(1)
-        all_gradient_list = torch.cat(all_gradient_list)
+        all_gradient_list = torch.stack(all_gradient_list,dim=0)
+        print(all_gradient_list.shape)
         progress_bar.close()
         torch.save(all_gradient_list,config['gradient_path'])
 
 def main(hyperparams):
+    print("start running..", flush=True)
     config = hyperparams
     imagen = load_imagen_from_checkpoint(hyperparams['checkpoint_path'])
     train_embedding = check_embedding(hyperparams['train_embedding'],hyperparams['annotation_file'])
@@ -153,6 +155,9 @@ def main(hyperparams):
     gen_gradients(trainer, valid_dataloader, config)
         
 if __name__ == '__main__':
+    print("1",flush=True)
     args = parse()
+    print("1",flush=True)
     hyperparams=prepare(args)
+    print("1",flush=True)
     main(hyperparams)

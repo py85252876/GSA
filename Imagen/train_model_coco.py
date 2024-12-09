@@ -6,9 +6,9 @@ import torch
 # https://github.com/lucidrains/imagen-pytorch.git
 from imagen_pytorch import load_imagen_from_checkpoint, ImagenTrainer, ImagenConfig
 
-from dataset_coco import *
+from dataset_MSCOCO import *
 from torchvision import transforms as T
-from process_caption import *
+from prepare_caption import *
 from einops import rearrange
 import os
 
@@ -41,7 +41,7 @@ def parse():
     parser.add_argument(
         "--gpu_id", 
         type=int, 
-        default=0,
+        default=1,
         help="The gpu number to run the code."
     )
     parser.add_argument(
@@ -176,7 +176,7 @@ def train_unet_1(trainer, train_dataloader, config, sample_factor=None, validate
                 image = trainer.sample(text_embeds=embedding.unsqueeze(0), cond_scale = 3. , return_pil_images = True,stop_at_unet_number = 1)
                 sample.append(wandb.Image(image[0], caption="picture"))
                 wandb.log({"samples": sample}, step=i+start_step)
-                sample_every = int(sample_every * sample_factor )
+                sample_every = int(sample_every * sample_factor)
             if save_every is not None and i != 0 and i % save_every == 0:
                 trainer.save(f"{config.model_save_dir}unet{num}-{i+start_step}.pt")
             i+=1
